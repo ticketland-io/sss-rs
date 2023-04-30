@@ -19,6 +19,7 @@ pub fn from_secret(
     secret: u8,
     shares_required: u8,
     shares_to_create: u8,
+    coeff_2: Option<u8>,
     rand: Option<&mut dyn RngCore>,
 ) -> Result<Vec<(u8, u8)>, Error> {
     if shares_required > shares_to_create {
@@ -40,7 +41,14 @@ pub fn from_secret(
     };
 
     share_poly.set_coeff(Coeff(secret), 0);
-    for i in 1..shares_required {
+    
+    let mut start_index = 1;
+    if let Some(coeff_2) = coeff_2 {
+      share_poly.set_coeff(Coeff(coeff_2), 1);
+      start_index = 2;
+    };
+
+    for i in start_index..shares_required {
         let curr_co = rng.gen_range(2..255);
         share_poly.set_coeff(Coeff(curr_co), i as usize);
     }
@@ -88,6 +96,7 @@ pub fn from_secrets(
     secret: &[u8],
     shares_required: u8,
     shares_to_create: u8,
+    coeff_2: Option<u8>,
     rand: Option<&mut dyn RngCore>,
 ) -> Result<Vec<Vec<(u8, u8)>>, Error> {
     if secret.is_empty() {
@@ -107,7 +116,7 @@ pub fn from_secrets(
     let mut list_of_share_lists: Vec<Vec<(u8, u8)>> = Vec::with_capacity(secret.len());
 
     for s in secret {
-        match from_secret(*s, shares_required, shares_to_create, Some(&mut rand)) {
+        match from_secret(*s, shares_required, shares_to_create, coeff_2, Some(&mut rand)) {
             Ok(shares) => {
                 // Now this list needs to be transposed:
                 list_of_share_lists.push(shares);
@@ -166,7 +175,7 @@ pub fn from_secrets_no_points(
     rand: Option<&mut dyn RngCore>,
 ) -> Result<Vec<Vec<u8>>, Error> {
     Ok(
-        from_secrets(secret, shares_required, shares_to_create, rand)?
+        from_secrets(secret, shares_required, shares_to_create, None, rand)?
             .into_iter()
             .map(reduce_share)
             .map(|(x, ys)| {

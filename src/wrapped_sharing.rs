@@ -362,6 +362,7 @@ pub fn share_to_writables<'a, T: Read + Seek>(
                 shares_required,
                 shares_to_create,
                 None,
+                None,
             )?;
             share_lists_to_dests(share_lists, dests)?;
         }
@@ -375,7 +376,7 @@ pub fn share_to_writables<'a, T: Read + Seek>(
         // Now that all of the shares have been written to, calculate the hash and share the hash
         // to the dests
         let hash: Vec<u8> = secret.calculate_hash()?.to_vec();
-        let share_lists = from_secrets(&hash, shares_required, shares_to_create, None)?;
+        let share_lists = from_secrets(&hash, shares_required, shares_to_create, None, None)?;
 
         // The shares for the hash have been created, write them all to dests
         share_lists_to_dests(share_lists, dests)?;
