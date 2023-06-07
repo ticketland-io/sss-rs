@@ -41,7 +41,7 @@ pub fn from_secret(
     };
 
     share_poly.set_coeff(Coeff(secret), 0);
-    
+
     let mut start_index = 1;
     if let Some(coeff_2) = coeff_2 {
       share_poly.set_coeff(Coeff(coeff_2), 1);

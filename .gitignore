@@ -1,6 +1,6 @@
 /target/
 Cargo.lock
-
+.DS_Store
 **/*.rs.bk
 
 # For vim swap files, source=https://github.com/github/gitignore/blob/master/Global/Vim.gitignore
