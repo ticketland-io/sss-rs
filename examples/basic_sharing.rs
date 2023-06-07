@@ -8,9 +8,11 @@ fn basic_sharing() {
   let secret = b"this is a secret seed";
 
   // The second coefficient is predictable and is  constructed from secret answers to user selected questions
-  let first_pet = "arnold";
+  let first_pet = "Arnold";
   let favourite_animal = "crab";
-  let coeff_2 = hash(format!("{first_pet}{favourite_animal}").as_bytes()).as_bytes().to_vec();
+  let coefficients = vec![
+    hash(format!("{first_pet}{favourite_animal}").as_bytes()).as_bytes().to_vec()
+  ];
   let shares_to_create = 3;
   let shares_required = 2;
 
@@ -18,7 +20,7 @@ fn basic_sharing() {
     secret,
     shares_required,
     shares_to_create,
-    Some(coeff_2),
+    Some(coefficients),
     None,
   ).unwrap();
 
