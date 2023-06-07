@@ -1,6 +1,6 @@
-use crate::geometry::*;
 use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
+use crate::geometry::*;
 
 /// Creates a vector of points that serve as the list of shares for a given byte of data.
 ///
@@ -74,6 +74,22 @@ pub fn reconstruct_secret(shares: Vec<(u8, u8)>) -> u8 {
     GaloisPolynomial::get_y_intercept_from_points(shares.as_slice())
 }
 
+fn normalize_coeff_2(secret_len: usize, coeff_2: Option<Vec<u8>>) -> Option<Vec<u8>> {
+  coeff_2.map(|mut c| {
+    let coeff_len = c.len();
+    let diff = coeff_len as i32 - secret_len as i32;
+
+    if diff <= 0 {
+      // fill with 0's
+      [c, vec![0; diff as usize]].concat()
+    } else {
+      // remove the last N items from coeff
+      c.drain(secret_len..);
+      c
+    }
+  })
+}
+
 /// This is a wrapper around [from_secret]
 /// that loops through the *secret* slice and secret.
 ///
@@ -96,7 +112,7 @@ pub fn from_secrets(
     secret: &[u8],
     shares_required: u8,
     shares_to_create: u8,
-    coeff_2: Option<u8>,
+    coeff_2: Option<Vec<u8>>,
     rand: Option<&mut dyn RngCore>,
 ) -> Result<Vec<Vec<(u8, u8)>>, Error> {
     if secret.is_empty() {
@@ -115,8 +131,13 @@ pub fn from_secrets(
 
     let mut list_of_share_lists: Vec<Vec<(u8, u8)>> = Vec::with_capacity(secret.len());
 
-    for s in secret {
-        match from_secret(*s, shares_required, shares_to_create, coeff_2, Some(&mut rand)) {
+    // coeff should be of the same length as secret
+    let coeff_2 = normalize_coeff_2(secret.len(), coeff_2);
+
+    for (i, s) in secret.iter().enumerate() {
+        let coeff = coeff_2.as_ref().map(|c| c[i]);
+
+        match from_secret(*s, shares_required, shares_to_create, coeff, Some(&mut rand)) {
             Ok(shares) => {
                 // Now this list needs to be transposed:
                 list_of_share_lists.push(shares);
@@ -172,10 +193,11 @@ pub fn from_secrets_no_points(
     secret: &[u8],
     shares_required: u8,
     shares_to_create: u8,
+    coeff_2: Option<Vec<u8>>,
     rand: Option<&mut dyn RngCore>,
 ) -> Result<Vec<Vec<u8>>, Error> {
     Ok(
-        from_secrets(secret, shares_required, shares_to_create, None, rand)?
+        from_secrets(secret, shares_required, shares_to_create, coeff_2, rand)?
             .into_iter()
             .map(reduce_share)
             .map(|(x, ys)| {
@@ -325,7 +347,7 @@ mod tests {
         }
         */
 
-        let shares = from_secret(secret, shares_required, shares_to_create, None).unwrap();
+        let shares = from_secret(secret, shares_required, shares_to_create, None, None).unwrap();
 
         let secret_decrypted = reconstruct_secret(shares);
         assert_eq!(secret, secret_decrypted);
@@ -377,7 +399,7 @@ mod tests {
     fn no_points() {
         let secret = vec![10, 20, 30, 40, 50];
         let n = 3;
-        let shares = from_secrets_no_points(&secret, n, n, None).unwrap();
+        let shares = from_secrets_no_points(&secret, n, n, None, None).unwrap();
         let recon = reconstruct_secrets_no_points(shares).unwrap();
         assert_eq!(secret, recon);
     }
