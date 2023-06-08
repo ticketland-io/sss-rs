@@ -37,9 +37,9 @@ fn basic_sharing_with_shares() {
 
   // Shares in hex format
   let shares = vec![
-    "01bf9648af43fedf293d6ff33345902534a839080327",
-    "02ff892bd6e65a3632d9be6ec92fabe5f42de7bfa9e2",
-    "0334770a0a85cd9a3b85f1ee9f0949a5b4a5add2cfa1"
+    "0109a8d31e9a76884421bf2c4b3fccc80a53342e8c28",
+    "028ef500a9495798e8e103cd39db132288c6fdf3aafc",
+    "03f335bac4f348638ca19c921787ad8ff6b5bab843b0"
   ];
 
   let shares = shares.iter().map(|s| hex::decode(s).unwrap()).collect::<Vec<_>>();
