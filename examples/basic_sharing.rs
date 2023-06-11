@@ -70,6 +70,7 @@ fn basic_sharing_with_shares() {
   // User answers the following question to derive the share f(3)
   let first_pet = "Arnold";
   let favourite_animal = "crab";
+  // Note if secret is smaller then 32 bytes the we need to truncate `derived_share` to match it's length;
   let derived_share = hash(format!("{first_pet}{favourite_animal}").as_bytes());
   // pre-end the share with number 3 since it represents the thirs share
   let derived_share = format!("03{derived_share}");
