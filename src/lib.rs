@@ -1,4 +1,4 @@
 pub mod basic_sharing;
-mod geometry;
+pub mod geometry;
 mod utils;
 pub mod wrapped_sharing;

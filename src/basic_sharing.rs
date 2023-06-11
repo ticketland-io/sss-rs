@@ -85,7 +85,7 @@ pub fn reconstruct_secret(shares: Vec<(u8, u8)>) -> u8 {
 }
 
 // Make the legnth of each coefficient equal to the length of the secret
-fn normalize_coefficients(
+pub fn normalize_coefficients(
   secret_len: usize,
   coefficients: Option<Vec<Vec<u8>>>
 ) -> Option<Vec<Vec<u8>>> {
