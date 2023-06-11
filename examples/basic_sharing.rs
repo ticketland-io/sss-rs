@@ -7,13 +7,25 @@ use sss_rs::{
 };
 
 /// This will calculate `a1 = (f3 - a0) / 3`
+/// The way it works is fairly simple. In a 2 of N scheme we SSS constructs a polynomial of degree 2 - 1.
+/// A polynomial of 1 degree is essentially a line i.e. `f(x) = a0 + a1*x`.
+/// The trick to create a derived share is as follows:
+/// 
+/// 1. let the derived share be the share 3 i.e. f(3) = 100
+/// 2. given f(3) find the coefficient a1 from the above polynomial. If we solve the polynomial for a1 and x=3
+///    we get `a1 = (f3 - a0) / 3`
+/// 3. Now we have both the static coefficients a0, which is the secret, as well as, the second coefficient a1.
+/// 
+/// Now we can restore the secret by using 2 shares. One share can be stored on a device of in an encrypted form,
+/// on some decentralized storage. The second share can be a hash of answers to questions users know. With 2 shares
+/// user can restore the secret.
 fn calculate_derived_coeff(secret: &[u8], derived_share: &[u8]) -> Vec<u8> {
   let mut coeff = vec![];
   
+  // Note! operations must take place in the Galois finite field
   for (i, s) in secret.iter().enumerate() {
     let f3 = Coeff(derived_share[i]);
     let a0 = Coeff(*s);
-    // operations are done in the Galois finite field
     let a1 = (f3 - a0) / Coeff(3);
 
     coeff.push(a1.0);
