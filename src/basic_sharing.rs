@@ -1,6 +1,6 @@
-use crate::geometry::*;
 use rand::rngs::StdRng;
 use rand::{Rng, RngCore, SeedableRng};
+use crate::geometry::*;
 
 /// Creates a vector of points that serve as the list of shares for a given byte of data.
 ///
@@ -19,6 +19,7 @@ pub fn from_secret(
     secret: u8,
     shares_required: u8,
     shares_to_create: u8,
+    coefficients: Option<Vec<u8>>,
     rand: Option<&mut dyn RngCore>,
 ) -> Result<Vec<(u8, u8)>, Error> {
     if shares_required > shares_to_create {
@@ -40,7 +41,24 @@ pub fn from_secret(
     };
 
     share_poly.set_coeff(Coeff(secret), 0);
-    for i in 1..shares_required {
+
+    let mut start_index = 1;
+    if let Some(coefficients) = coefficients {
+      let coeff_count = coefficients.len() as u8;
+
+      // We can't have more coefficients than the polynomial degree
+      if coeff_count > shares_required - 1 {
+        return Err(Error::InvalidNumberOfCoefficients(shares_required - 1, coeff_count));
+      }
+
+      coefficients.into_iter().enumerate().for_each(|(i, c)| {
+        share_poly.set_coeff(Coeff(c), i + 1);
+      });  
+      
+      start_index = coeff_count + 1;
+    };
+
+    for i in start_index..shares_required {
         let curr_co = rng.gen_range(2..255);
         share_poly.set_coeff(Coeff(curr_co), i as usize);
     }
@@ -66,6 +84,29 @@ pub fn reconstruct_secret(shares: Vec<(u8, u8)>) -> u8 {
     GaloisPolynomial::get_y_intercept_from_points(shares.as_slice())
 }
 
+// Make the legnth of each coefficient equal to the length of the secret
+pub fn normalize_coefficients(
+  secret_len: usize,
+  coefficients: Option<Vec<Vec<u8>>>
+) -> Option<Vec<Vec<u8>>> {
+  coefficients.map(|inner| {
+    inner.into_iter().map(|mut c| {
+      let coeff_len = c.len();
+      let diff = coeff_len as i32 - secret_len as i32;
+  
+      if diff <= 0 {
+        // fill with 0's
+        [c, vec![0; diff as usize]].concat()
+      } else {
+        // remove the last N items from coeff
+        c.drain(secret_len..);
+        c
+      }
+    })
+    .collect::<Vec<Vec<_>>>()
+  })
+}
+
 /// This is a wrapper around [from_secret]
 /// that loops through the *secret* slice and secret.
 ///
@@ -78,6 +119,8 @@ pub fn reconstruct_secret(shares: Vec<(u8, u8)>) -> u8 {
 /// ```
 /// **secret:** A slice of bytes to be used to create the vector of share vectors
 ///
+/// **coefficients:** A list of pre-defined coefficients for the polynomial
+/// 
 /// **rand:** The rng source for the generated coefficients in the sharing process.
 /// The default is StdRng::from_entropy()
 ///
@@ -88,6 +131,7 @@ pub fn from_secrets(
     secret: &[u8],
     shares_required: u8,
     shares_to_create: u8,
+    coefficients: Option<Vec<Vec<u8>>>,
     rand: Option<&mut dyn RngCore>,
 ) -> Result<Vec<Vec<(u8, u8)>>, Error> {
     if secret.is_empty() {
@@ -106,8 +150,15 @@ pub fn from_secrets(
 
     let mut list_of_share_lists: Vec<Vec<(u8, u8)>> = Vec::with_capacity(secret.len());
 
-    for s in secret {
-        match from_secret(*s, shares_required, shares_to_create, Some(&mut rand)) {
+    // coeff should be of the same length as secret
+    let coefficients = normalize_coefficients(secret.len(), coefficients);
+
+    for (i, s) in secret.iter().enumerate() {
+        let coeff = coefficients.as_ref().map(|c| {
+          c.iter().map(|c| c[i]).collect::<Vec<u8>>()
+        });
+
+        match from_secret(*s, shares_required, shares_to_create, coeff, Some(&mut rand)) {
             Ok(shares) => {
                 // Now this list needs to be transposed:
                 list_of_share_lists.push(shares);
@@ -163,10 +214,11 @@ pub fn from_secrets_no_points(
     secret: &[u8],
     shares_required: u8,
     shares_to_create: u8,
+    coefficients: Option<Vec<Vec<u8>>>,
     rand: Option<&mut dyn RngCore>,
 ) -> Result<Vec<Vec<u8>>, Error> {
     Ok(
-        from_secrets(secret, shares_required, shares_to_create, rand)?
+        from_secrets(secret, shares_required, shares_to_create, coefficients, rand)?
             .into_iter()
             .map(reduce_share)
             .map(|(x, ys)| {
@@ -253,6 +305,7 @@ pub enum Error {
     NotEnoughShares { given: u8, required: u8 },
     InvalidMatrix { index_of_invalid_length_row: usize },
     InvalidNumberOfShares(u8),
+    InvalidNumberOfCoefficients(u8, u8),
     UnreconstructableSecret(u8, u8),
     EmptySecretArray,
 }
@@ -276,6 +329,9 @@ impl std::fmt::Display for Error {
             Error::InvalidNumberOfShares(num) => {
                 write!(f, "Need to generate at least 2 shares. Requested: {}", num)
             }
+            Error::InvalidNumberOfCoefficients(expected, found) => {
+              write!(f, "Expected at most {} coefficient but was given {}", expected, found)
+            },
             Error::UnreconstructableSecret(to_create, required) => write!(
                 f,
                 "Can't create less shares than required to reconstruct. Create: {}, Req: {}",
@@ -316,7 +372,7 @@ mod tests {
         }
         */
 
-        let shares = from_secret(secret, shares_required, shares_to_create, None).unwrap();
+        let shares = from_secret(secret, shares_required, shares_to_create, None, None).unwrap();
 
         let secret_decrypted = reconstruct_secret(shares);
         assert_eq!(secret, secret_decrypted);
@@ -368,7 +424,7 @@ mod tests {
     fn no_points() {
         let secret = vec![10, 20, 30, 40, 50];
         let n = 3;
-        let shares = from_secrets_no_points(&secret, n, n, None).unwrap();
+        let shares = from_secrets_no_points(&secret, n, n, None, None).unwrap();
         let recon = reconstruct_secrets_no_points(shares).unwrap();
         assert_eq!(secret, recon);
     }
