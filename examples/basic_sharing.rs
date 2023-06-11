@@ -83,8 +83,8 @@ fn basic_sharing_with_shares() {
   ];
 
   let shares = shares.iter().map(|s| hex::decode(s).unwrap()).collect::<Vec<_>>();
-
   let secret = reconstruct_secrets_no_points(shares).unwrap();
+  
   println!("Restored Secret {:?}", hex::encode(&secret));
 }
 
