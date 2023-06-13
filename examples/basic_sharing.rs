@@ -9,6 +9,7 @@ fn basic_sharing() {
   println!("Basic Sharing");
 
   let secret = hash(b"this is a secret seed");
+
   // The second coefficient is predictable and is  constructed from secret answers to user selected questions
   let first_pet = "Arnold";
   let favourite_animal = "crab";
