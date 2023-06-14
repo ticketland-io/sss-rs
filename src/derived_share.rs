@@ -28,7 +28,7 @@ pub fn derived_share(mut seeds: Vec<&str>) -> Vec<u8> {
   seeds.sort();
 
   let seed = seeds.into_iter()
-  .fold("".to_string(), |acc, elem| format!("{}{}", acc, elem));
+  .fold("".to_string(), |acc, elem| format!("{}{}", acc, elem.to_lowercase()));
 
   hash(seed.as_bytes()).as_bytes().to_vec()
 } 
